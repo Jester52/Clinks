@@ -7,7 +7,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
         body {
-            background: linear-gradient(135deg, #090e1a 0%, #172554 100%);
+            background: linear-gradient(135deg, #090e1a 0%, #1e3a8a 100%);
             font-family: 'Inter', sans-serif;
             color: #f8fafc;
             min-height: 100vh;
@@ -33,8 +33,10 @@
                 <input type="text" id="salaId" placeholder="ej. mago_01" 
                        class="w-full mt-2 bg-white/5 border border-white/10 rounded-xl p-3 focus:border-blue-500 outline-none">
                 
-                <label class="text-[10px] font-bold uppercase text-slate-500 mt-6 block">Proyectos</label>
-                <div id="proyectosDisponibles" class="space-y-2 mt-2 max-h-40 overflow-y-auto"></div>
+                <label class="text-[10px] font-bold uppercase text-slate-500 mt-6 block">Proyectos Disponibles</label>
+                <div id="proyectosDisponibles" class="space-y-2 mt-2 max-h-40 overflow-y-auto">
+                    <p class="text-slate-600 text-xs italic">Cargando...</p>
+                </div>
             </div>
             
             <div class="flex flex-col justify-end">
@@ -65,71 +67,57 @@
 
         const db = getFirestore(initializeApp(firebaseConfig));
 
-        // Cargar Proyectos al iniciar
         async function cargarProyectos() {
             const snap = await getDocs(collection(db, "proyectos"));
             const div = document.getElementById('proyectosDisponibles');
+            div.innerHTML = '';
             snap.forEach(d => {
                 div.innerHTML += `
-                    <label class="flex items-center text-sm">
+                    <label class="flex items-center text-sm cursor-pointer hover:text-blue-300">
                         <input type="checkbox" value="${d.id}" class="mr-3 accent-blue-500"> ${d.data().nombre}
                     </label>`;
             });
         }
 
-        // Listar Salas existentes
+        async function listarSalas() {
+            const snap = await getDocs(collection(db, "salas"));
+            const lista = document.getElementById('listaSalas');
+            lista.innerHTML = '';
+            const urlBase = "https://jester52.github.io/Clinks/?sala=";
 
-        // Listar Salas existentes con su Link de Acceso
-async function listarSalas() {
-    const snap = await getDocs(collection(db, "salas"));
-    const lista = document.getElementById('listaSalas');
-    lista.innerHTML = '';
-    
-    // URL Base
-    const urlBase = "https://jester52.github.io/Clinks/?sala=";
-
-    snap.forEach(d => {
-        const linkCompleto = urlBase + d.id;
-        lista.innerHTML += `
-            <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-3">
-                <div class="flex justify-between items-center">
-                    <span class="font-mono text-blue-400 font-bold">${d.id}</span>
-                    <div class="space-x-2">
-                        <button onclick="editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
-                        <button onclick="borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <input type="text" readonly value="${linkCompleto}" 
-                           class="w-full bg-black/30 text-[10px] p-2 rounded border border-white/5 text-slate-400 font-mono">
-                    <button onclick="copiarLink('${linkCompleto}')" 
-                            class="px-3 py-1 bg-blue-600/20 text-blue-400 text-[10px] rounded hover:bg-blue-600/40">
-                        Copiar
-                    </button>
-                </div>
-            </div>`;
-    });
-}
-
-// Función para copiar al portapapeles
-window.copiarLink = (link) => {
-    navigator.clipboard.writeText(link);
-    alert("¡Link copiado al portapapeles!");
-};
+            snap.forEach(d => {
+                const linkCompleto = urlBase + d.id;
+                lista.innerHTML += `
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-mono text-blue-400 font-bold">${d.id}</span>
+                            <div class="space-x-4">
+                                <button onclick="editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
+                                <button onclick="borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" readonly value="${linkCompleto}" class="w-full bg-black/30 text-[10px] p-2 rounded border border-white/5 text-slate-400 font-mono truncate">
+                            <button onclick="window.copiarLink('${linkCompleto}')" class="px-3 py-1 bg-blue-600/20 text-blue-400 text-[10px] rounded hover:bg-blue-600/40">Copiar</button>
+                        </div>
+                    </div>`;
+            });
+        }
 
         window.guardarSala = async () => {
             const id = document.getElementById('salaId').value.trim();
             const checked = Array.from(document.querySelectorAll('#proyectosDisponibles input:checked')).map(i => i.value);
             if(!id) return alert("Escribe un ID");
             await setDoc(doc(db, "salas", id), { proyectos_activos: checked });
-            alert("¡Guardado!");
-            listarSalas();
+            alert("¡Sala guardada con éxito!");
+            document.getElementById('salaId').value = '';
+            await listarSalas();
         };
 
         window.editarSala = async (id) => {
             const snap = await getDoc(doc(db, "salas", id));
             document.getElementById('salaId').value = id;
-            const permitidos = snap.data().proyectos_activos;
+            const permitidos = snap.data().proyectos_activos || [];
             document.querySelectorAll('#proyectosDisponibles input').forEach(cb => {
                 cb.checked = permitidos.includes(cb.value);
             });
@@ -138,8 +126,13 @@ window.copiarLink = (link) => {
         window.borrarSala = async (id) => {
             if(confirm("¿Eliminar sala " + id + "?")) {
                 await deleteDoc(doc(db, "salas", id));
-                listarSalas();
+                await listarSalas();
             }
+        };
+
+        window.copiarLink = (link) => {
+            navigator.clipboard.writeText(link);
+            alert("¡Link copiado!");
         };
 
         cargarProyectos();
