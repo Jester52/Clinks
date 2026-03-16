@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Magician Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); min-height: 100vh; color: white; }
+    </style>
+</head>
+<body class="p-10">
+
+    <div class="max-w-md mx-auto">
+        <h1 id="tituloSala" class="text-2xl font-bold mb-8 text-center uppercase tracking-widest">Cargando...</h1>
+        <div id="contenedorProyectos" class="space-y-4">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = { /* TU CONFIG IGUAL QUE EN ADMIN */ };
+        const db = getFirestore(initializeApp(firebaseConfig));
+
+        // 1. Obtener ID de la URL (?sala=juan123)
+        const params = new URLSearchParams(window.location.search);
+        const salaId = params.get('sala');
+
+        async function cargarHub() {
+            if (!salaId) {
+                document.getElementById('tituloSala').innerText = "Acceso Denegado";
+                return;
+            }
+
+            // 2. Traer la config de la sala
+            const salaSnap = await getDoc(doc(db, "salas", salaId));
+            
+            if (!salaSnap.exists()) {
+                document.getElementById('tituloSala').innerText = "Sala no encontrada";
+                return;
+            }
+
+            const permitidos = salaSnap.data().proyectos_activos;
+            document.getElementById('tituloSala').innerText = "Hub: " + salaId;
+
+            // 3. Renderizar solo los permitidos
+            const contenedor = document.getElementById('contenedorProyectos');
+            
+            for (const idProyecto of permitidos) {
+                const projSnap = await getDoc(doc(db, "proyectos", idProyecto));
+                if (projSnap.exists()) {
+                    const p = projSnap.data();
+                    contenedor.innerHTML += `
+                        <a href="${p.url}" target="_blank" 
+                           class="block p-5 bg-white/5 border border-white/10 rounded-2xl hover:border-blue-500 transition">
+                            <h2 class="font-bold">${p.nombre}</h2>
+                            <p class="text-xs text-slate-400 mt-1">${p.descripcion}</p>
+                        </a>
+                    `;
+                }
+            }
+        }
+
+        cargarHub();
+    </script>
+</body>
+</html>
