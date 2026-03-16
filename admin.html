@@ -2,6 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Magician">
     <title>Magician Admin | Dashboard Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -40,7 +44,7 @@
             </div>
             
             <div class="flex flex-col justify-end">
-                <button onclick="guardarSala()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition">
+                <button onclick="window.guardarSala()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition">
                     Guardar / Actualizar Sala
                 </button>
             </div>
@@ -56,92 +60,106 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // TU CONFIGURACIÓN ORIGINAL
-        const firebaseConfig = {
-            apiKey: "AIzaSyAbPEsgusK335aOjVj8jIJk7VLHqerJg9c",
-            authDomain: "gestor-de-links-magia.firebaseapp.com",
-            projectId: "gestor-de-links-magia",
-            storageBucket: "gestor-de-links-magia.firebasestorage.app",
-            messagingSenderId: "879159665131",
-            appId: "1:879159665131:web:55c98610c39a1a04f479ae",
-            measurementId: "G-9KPQT4PTLT"
-        };
-
-        const db = getFirestore(initializeApp(firebaseConfig));
-
-        async function cargarProyectos() {
-            const snap = await getDocs(collection(db, "proyectos"));
-            const div = document.getElementById('proyectosDisponibles');
-            div.innerHTML = '';
-            snap.forEach(d => {
-                div.innerHTML += `
-                    <label class="flex items-center text-sm cursor-pointer hover:text-blue-300">
-                        <input type="checkbox" value="${d.id}" class="mr-3 accent-blue-500"> ${d.data().nombre || d.id}
-                    </label>`;
-            });
+        // --- SEGURIDAD: Protección por clave ---
+        const CLAVE_ESPERADA = "S3Jvbm9zNTI="; // Base64 de "Kronos52"
+        const inputPass = prompt("Ingresa la clave de acceso:");
+        
+        if (!inputPass || btoa(inputPass) !== CLAVE_ESPERADA) {
+            alert("Acceso denegado.");
+            window.location.href = "https://google.com";
+        } else {
+            // Solo si la clave es correcta se carga el resto de la App
+            iniciarApp();
         }
 
-        async function listarSalas() {
-            const snap = await getDocs(collection(db, "salas"));
-            const lista = document.getElementById('listaSalas');
-            lista.innerHTML = '';
-            const urlBase = "https://jester52.github.io/Clinks/?sala=";
+        function iniciarApp() {
+            const firebaseConfig = {
+                apiKey: "AIzaSyAbPEsgusK335aOjVj8jIJk7VLHqerJg9c",
+                authDomain: "gestor-de-links-magia.firebaseapp.com",
+                projectId: "gestor-de-links-magia",
+                storageBucket: "gestor-de-links-magia.firebasestorage.app",
+                messagingSenderId: "879159665131",
+                appId: "1:879159665131:web:55c98610c39a1a04f479ae",
+                measurementId: "G-9KPQT4PTLT"
+            };
 
-            snap.forEach(d => {
-                const linkCompleto = urlBase + d.id;
-                lista.innerHTML += `
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-3">
-                        <div class="flex justify-between items-center">
-                            <span class="font-mono text-blue-400 font-bold">${d.id}</span>
-                            <div class="space-x-4">
-                                <button onclick="window.editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
-                                <button onclick="window.borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <input type="text" readonly value="${linkCompleto}" class="w-full bg-black/30 text-[10px] p-2 rounded border border-white/5 text-slate-400 font-mono truncate">
-                            <button onclick="window.copiarLink('${linkCompleto}')" class="px-3 py-1 bg-blue-600/20 text-blue-400 text-[10px] rounded hover:bg-blue-600/40">Copiar</button>
-                        </div>
-                    </div>`;
-            });
-        }
+            const db = getFirestore(initializeApp(firebaseConfig));
 
-        window.guardarSala = async () => {
-            const id = document.getElementById('salaId').value.trim();
-            const checked = Array.from(document.querySelectorAll('#proyectosDisponibles input:checked')).map(i => i.value);
-            if(!id) return alert("Escribe un ID");
-            await setDoc(doc(db, "salas", id), { proyectos_activos: checked });
-            alert("¡Guardado!");
-            document.getElementById('salaId').value = '';
-            document.querySelectorAll('#proyectosDisponibles input').forEach(i => i.checked = false);
-            await listarSalas();
-        };
-
-        window.editarSala = async (id) => {
-            const snap = await getDoc(doc(db, "salas", id));
-            if(snap.exists()){
-                document.getElementById('salaId').value = id;
-                const permitidos = snap.data().proyectos_activos || [];
-                document.querySelectorAll('#proyectosDisponibles input').forEach(cb => {
-                    cb.checked = permitidos.includes(cb.value);
+            // Funciones movidas al scope global para que funcionen con los onclick
+            window.cargarProyectos = async () => {
+                const snap = await getDocs(collection(db, "proyectos"));
+                const div = document.getElementById('proyectosDisponibles');
+                div.innerHTML = '';
+                snap.forEach(d => {
+                    div.innerHTML += `
+                        <label class="flex items-center text-sm cursor-pointer hover:text-blue-300">
+                            <input type="checkbox" value="${d.id}" class="mr-3 accent-blue-500"> ${d.data().nombre || d.id}
+                        </label>`;
                 });
-            }
-        };
+            };
 
-        window.borrarSala = async (id) => {
-            if(confirm("¿Eliminar sala " + id + "?")) {
-                await deleteDoc(doc(db, "salas", id));
-                await listarSalas();
-            }
-        };
+            window.listarSalas = async () => {
+                const snap = await getDocs(collection(db, "salas"));
+                const lista = document.getElementById('listaSalas');
+                lista.innerHTML = '';
+                const urlBase = "https://jester52.github.io/Clinks/?sala=";
 
-        window.copiarLink = (link) => {
-            navigator.clipboard.writeText(link);
-            alert("¡Link copiado!");
-        };
+                snap.forEach(d => {
+                    const linkCompleto = urlBase + d.id;
+                    lista.innerHTML += `
+                        <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="font-mono text-blue-400 font-bold">${d.id}</span>
+                                <div class="space-x-4">
+                                    <button onclick="window.editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
+                                    <button onclick="window.borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" readonly value="${linkCompleto}" class="w-full bg-black/30 text-[10px] p-2 rounded border border-white/5 text-slate-400 font-mono truncate">
+                                <button onclick="window.copiarLink('${linkCompleto}')" class="px-3 py-1 bg-blue-600/20 text-blue-400 text-[10px] rounded hover:bg-blue-600/40">Copiar</button>
+                            </div>
+                        </div>`;
+                });
+            };
 
-        cargarProyectos();
-        listarSalas();
+            window.guardarSala = async () => {
+                const id = document.getElementById('salaId').value.trim();
+                const checked = Array.from(document.querySelectorAll('#proyectosDisponibles input:checked')).map(i => i.value);
+                if(!id) return alert("Escribe un ID");
+                await setDoc(doc(db, "salas", id), { proyectos_activos: checked });
+                alert("¡Guardado!");
+                document.getElementById('salaId').value = '';
+                document.querySelectorAll('#proyectosDisponibles input').forEach(i => i.checked = false);
+                await window.listarSalas();
+            };
+
+            window.editarSala = async (id) => {
+                const snap = await getDoc(doc(db, "salas", id));
+                if(snap.exists()){
+                    document.getElementById('salaId').value = id;
+                    const permitidos = snap.data().proyectos_activos || [];
+                    document.querySelectorAll('#proyectosDisponibles input').forEach(cb => {
+                        cb.checked = permitidos.includes(cb.value);
+                    });
+                }
+            };
+
+            window.borrarSala = async (id) => {
+                if(confirm("¿Eliminar sala " + id + "?")) {
+                    await deleteDoc(doc(db, "salas", id));
+                    await window.listarSalas();
+                }
+            };
+
+            window.copiarLink = (link) => {
+                navigator.clipboard.writeText(link);
+                alert("¡Link copiado!");
+            };
+
+            window.cargarProyectos();
+            window.listarSalas();
+        }
     </script>
 </body>
 </html>
