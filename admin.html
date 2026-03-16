@@ -126,9 +126,24 @@
             window.guardarSala = async () => {
                 const id = document.getElementById('salaId').value.trim();
                 const checked = Array.from(document.querySelectorAll('#proyectosDisponibles input:checked')).map(i => i.value);
-                if(!id) return alert("Escribe un ID");
-                await setDoc(doc(db, "salas", id), { proyectos_activos: checked });
-                alert("¡Guardado!");
+                
+                if(!id) return alert("Escribe un ID para la sala");
+            
+                // --- NUEVA VALIDACIÓN ---
+                // Verificamos si el documento ya existe antes de crearlo
+                const docRef = doc(db, "salas", id);
+                const docSnap = await getDoc(docRef);
+            
+                if (docSnap.exists()) {
+                    const confirmar = confirm("¡Cuidado! La sala '" + id + "' ya existe. ¿Deseas sobrescribir los datos actuales?");
+                    if (!confirmar) return; // Si cancela, no hacemos nada
+                }
+                // ------------------------
+            
+                await setDoc(docRef, { proyectos_activos: checked });
+                alert("¡Sala guardada exitosamente!");
+                
+                // Limpieza
                 document.getElementById('salaId').value = '';
                 document.querySelectorAll('#proyectosDisponibles input').forEach(i => i.checked = false);
                 await window.listarSalas();
