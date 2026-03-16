@@ -2,16 +2,32 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magician Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); min-height: 100vh; color: white; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+        body { 
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%); 
+            min-height: 100vh; 
+            color: white; 
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .card:hover { border-color: #3b82f6; background: rgba(255, 255, 255, 0.06); }
     </style>
 </head>
-<body class="p-10">
+<body class="p-6 md:p-10">
 
     <div class="max-w-md mx-auto">
-        <h1 id="tituloSala" class="text-2xl font-bold mb-8 text-center uppercase tracking-widest">Cargando...</h1>
+        <header class="mb-10 text-center">
+            <h1 id="tituloSala" class="text-xl font-light tracking-widest uppercase text-blue-400">Cargando...</h1>
+        </header>
+        
         <div id="contenedorProyectos" class="space-y-4">
             </div>
     </div>
@@ -20,45 +36,62 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = { /* TU CONFIG IGUAL QUE EN ADMIN */ };
-        const db = getFirestore(initializeApp(firebaseConfig));
+        // --- TU CONFIGURACIÓN DE FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAbPEsgusK335aOjVj8jIJk7VLHqerJg9c",
+            authDomain: "gestor-de-links-magia.firebaseapp.com",
+            projectId: "gestor-de-links-magia",
+            storageBucket: "gestor-de-links-magia.firebasestorage.app",
+            messagingSenderId: "879159665131",
+            appId: "1:879159665131:web:55c98610c39a1a04f479ae"
+        };
 
-        // 1. Obtener ID de la URL (?sala=juan123)
-        const params = new URLSearchParams(window.location.search);
-        const salaId = params.get('sala');
+        const db = getFirestore(initializeApp(firebaseConfig));
+        const salaId = new URLSearchParams(window.location.search).get('sala');
 
         async function cargarHub() {
-            if (!salaId) {
-                document.getElementById('tituloSala').innerText = "Acceso Denegado";
-                return;
-            }
-
-            // 2. Traer la config de la sala
-            const salaSnap = await getDoc(doc(db, "salas", salaId));
-            
-            if (!salaSnap.exists()) {
-                document.getElementById('tituloSala').innerText = "Sala no encontrada";
-                return;
-            }
-
-            const permitidos = salaSnap.data().proyectos_activos;
-            document.getElementById('tituloSala').innerText = "Hub: " + salaId;
-
-            // 3. Renderizar solo los permitidos
+            const titulo = document.getElementById('tituloSala');
             const contenedor = document.getElementById('contenedorProyectos');
-            
-            for (const idProyecto of permitidos) {
-                const projSnap = await getDoc(doc(db, "proyectos", idProyecto));
-                if (projSnap.exists()) {
-                    const p = projSnap.data();
-                    contenedor.innerHTML += `
-                        <a href="${p.url}" target="_blank" 
-                           class="block p-5 bg-white/5 border border-white/10 rounded-2xl hover:border-blue-500 transition">
-                            <h2 class="font-bold">${p.nombre}</h2>
-                            <p class="text-xs text-slate-400 mt-1">${p.descripcion}</p>
-                        </a>
-                    `;
+
+            console.log("Intentando cargar sala:", salaId);
+
+            if (!salaId) {
+                titulo.innerText = "Acceso Denegado";
+                return;
+            }
+
+            try {
+                const salaSnap = await getDoc(doc(db, "salas", salaId));
+                
+                if (!salaSnap.exists()) {
+                    titulo.innerText = "Sala no encontrada";
+                    console.log("El documento no existe en Firestore");
+                    return;
                 }
+
+                const data = salaSnap.data();
+                const permitidos = data.proyectos_activos || [];
+                titulo.innerText = "Sala: " + salaId;
+
+                contenedor.innerHTML = '';
+                for (const idProyecto of permitidos) {
+                    const projSnap = await getDoc(doc(db, "proyectos", idProyecto));
+                    
+                    if (projSnap.exists()) {
+                        const p = projSnap.data();
+                        contenedor.innerHTML += `
+                            <a href="${p.url}" target="_blank" class="card block p-6 rounded-2xl">
+                                <h2 class="font-bold text-lg">${p.nombre}</h2>
+                                <p class="text-sm text-slate-400 mt-2">${p.descripcion || 'Sin descripción'}</p>
+                            </a>
+                        `;
+                    } else {
+                        console.warn("Proyecto no encontrado:", idProyecto);
+                    }
+                }
+            } catch (e) {
+                console.error("Error crítico:", e);
+                titulo.innerText = "Error de conexión";
             }
         }
 

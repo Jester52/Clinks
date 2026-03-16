@@ -56,13 +56,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // TU CONFIGURACIÓN ORIGINAL
         const firebaseConfig = {
             apiKey: "AIzaSyAbPEsgusK335aOjVj8jIJk7VLHqerJg9c",
             authDomain: "gestor-de-links-magia.firebaseapp.com",
             projectId: "gestor-de-links-magia",
             storageBucket: "gestor-de-links-magia.firebasestorage.app",
             messagingSenderId: "879159665131",
-            appId: "1:879159665131:web:55c98610c39a1a04f479ae"
+            appId: "1:879159665131:web:55c98610c39a1a04f479ae",
+            measurementId: "G-9KPQT4PTLT"
         };
 
         const db = getFirestore(initializeApp(firebaseConfig));
@@ -74,7 +76,7 @@
             snap.forEach(d => {
                 div.innerHTML += `
                     <label class="flex items-center text-sm cursor-pointer hover:text-blue-300">
-                        <input type="checkbox" value="${d.id}" class="mr-3 accent-blue-500"> ${d.data().nombre}
+                        <input type="checkbox" value="${d.id}" class="mr-3 accent-blue-500"> ${d.data().nombre || d.id}
                     </label>`;
             });
         }
@@ -92,8 +94,8 @@
                         <div class="flex justify-between items-center">
                             <span class="font-mono text-blue-400 font-bold">${d.id}</span>
                             <div class="space-x-4">
-                                <button onclick="editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
-                                <button onclick="borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
+                                <button onclick="window.editarSala('${d.id}')" class="text-xs text-yellow-500 hover:text-yellow-400">Editar</button>
+                                <button onclick="window.borrarSala('${d.id}')" class="text-xs text-red-500 hover:text-red-400">Eliminar</button>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -109,18 +111,21 @@
             const checked = Array.from(document.querySelectorAll('#proyectosDisponibles input:checked')).map(i => i.value);
             if(!id) return alert("Escribe un ID");
             await setDoc(doc(db, "salas", id), { proyectos_activos: checked });
-            alert("¡Sala guardada con éxito!");
+            alert("¡Guardado!");
             document.getElementById('salaId').value = '';
+            document.querySelectorAll('#proyectosDisponibles input').forEach(i => i.checked = false);
             await listarSalas();
         };
 
         window.editarSala = async (id) => {
             const snap = await getDoc(doc(db, "salas", id));
-            document.getElementById('salaId').value = id;
-            const permitidos = snap.data().proyectos_activos || [];
-            document.querySelectorAll('#proyectosDisponibles input').forEach(cb => {
-                cb.checked = permitidos.includes(cb.value);
-            });
+            if(snap.exists()){
+                document.getElementById('salaId').value = id;
+                const permitidos = snap.data().proyectos_activos || [];
+                document.querySelectorAll('#proyectosDisponibles input').forEach(cb => {
+                    cb.checked = permitidos.includes(cb.value);
+                });
+            }
         };
 
         window.borrarSala = async (id) => {
